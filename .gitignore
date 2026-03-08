@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment files (keep .env.example, ignore .env)
+backend/.env
+
+# Trained model & data
+backend/model/*.pkl
+backend/data/*.csv
+
+# pytest cache
+.pytest_cache/
+.cache/
+
+# Node / React
+hearconnet-app/node_modules/
+hearconnet-app/build/
+hearconnet-app/.env.local
+hearconnet-app/.env.development.local
+hearconnet-app/.env.test.local
+hearconnet-app/.env.production.local
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
