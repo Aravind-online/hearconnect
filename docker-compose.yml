@@ -1,0 +1,106 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# HearConnect – docker-compose.yml  (local dev / CI build)
+#
+# Usage:
+#   docker compose up --build          # build & start all services
+#   docker compose up -d               # run in background
+#   docker compose down -v             # stop & remove volumes
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── MongoDB ─────────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: hearconnect-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: hearconnect
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend (FastAPI) ────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: hearconnect-backend:latest
+    container_name: hearconnect-backend
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      # MongoDB – use service name as hostname inside Docker network
+      MONGODB_URL: mongodb://mongodb:27017
+      MONGODB_DB_NAME: hearconnect
+
+      # CORS – React dev server & containerised frontend
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:80,http://frontend"
+
+      # JWT – override with a real secret in production
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MINUTES: "1440"
+
+      # Model & inference
+      MODEL_PATH: sign6_model.pkl
+      DATA_PATH: sign6_data.pkl
+      SIGNS: "HI,HELLO,I LOVE YOU,YES,NO,PLEASE"
+      CONFIDENCE_THRESHOLD: "0.75"
+      SMOOTH_FRAMES: "20"
+      SAMPLES_PER_SIGN: "300"
+
+      # Server
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      LOG_LEVEL: info
+    volumes:
+      # Persist trained model files between container restarts
+      - model_data:/app
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ── Frontend (React → Nginx) ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./hearconnet-app
+      dockerfile: Dockerfile
+      args:
+        # The browser connects to these URLs, so use localhost (not Docker service name)
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8000/ws/sign}
+        VITE_HEALTH_URL: ${VITE_HEALTH_URL:-http://localhost:8000/health}
+        VITE_FPS: ${VITE_FPS:-12}
+    image: hearconnect-frontend:latest
+    container_name: hearconnect-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+# ── Named volumes ────────────────────────────────────────────────────────────
+volumes:
+  mongo_data:
+    driver: local
+  model_data:
+    driver: local

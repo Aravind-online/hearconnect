@@ -1,0 +1,29 @@
+# Frontend .dockerignore
+# Don't copy heavy/unnecessary dirs into build context
+
+# Node modules (re-installed inside Docker)
+node_modules/
+
+# Git
+.git/
+.gitignore
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Test artefacts
+coverage/
+build/
+
+# Env files (build args used instead)
+.env
+.env.*
+*.env
+
+# Docs
+*.md
+LICENSE

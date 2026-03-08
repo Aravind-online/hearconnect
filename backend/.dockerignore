@@ -1,0 +1,47 @@
+# Backend .dockerignore
+# Keep image slim & avoid leaking secrets
+
+# Python cache / compiled
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test artefacts & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+*.xml
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Secrets (never bake into image)
+.env
+*.env
+
+# Docs
+*.md
+LICENSE
+
+# Jupyter
+*.ipynb
+.ipynb_checkpoints/
+
+# Trained model files (mounted via volume at runtime)
+*.pkl

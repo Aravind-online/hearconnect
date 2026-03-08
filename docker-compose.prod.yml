@@ -1,0 +1,91 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# HearConnect – docker-compose.prod.yml
+#
+# Pulls pre-built images from Docker Hub instead of building locally.
+# Set DOCKERHUB_USER before running:
+#
+#   Windows PowerShell:
+#     $env:DOCKERHUB_USER = "yourusername"
+#     docker compose -f docker-compose.prod.yml up -d
+#
+#   Bash / Linux / macOS:
+#     export DOCKERHUB_USER=yourusername
+#     docker compose -f docker-compose.prod.yml up -d
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── MongoDB ─────────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: hearconnect-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: hearconnect
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend (pulled from Docker Hub) ────────────────────────────────────────
+  backend:
+    image: ${DOCKERHUB_USER}/hearconnect-backend:${IMAGE_TAG:-latest}
+    container_name: hearconnect-backend
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      MONGODB_URL: mongodb://mongodb:27017
+      MONGODB_DB_NAME: hearconnect
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:80"
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MINUTES: "1440"
+      MODEL_PATH: sign6_model.pkl
+      DATA_PATH: sign6_data.pkl
+      SIGNS: "HI,HELLO,I LOVE YOU,YES,NO,PLEASE"
+      CONFIDENCE_THRESHOLD: "0.75"
+      SMOOTH_FRAMES: "20"
+      SAMPLES_PER_SIGN: "300"
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      LOG_LEVEL: info
+    volumes:
+      - model_data:/app
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ── Frontend (pulled from Docker Hub) ───────────────────────────────────────
+  frontend:
+    image: ${DOCKERHUB_USER}/hearconnect-frontend:${IMAGE_TAG:-latest}
+    container_name: hearconnect-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+# ── Named volumes ────────────────────────────────────────────────────────────
+volumes:
+  mongo_data:
+    driver: local
+  model_data:
+    driver: local
